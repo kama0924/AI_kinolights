@@ -56,3 +56,10 @@ body {
   background: linear-gradient(110deg, #2d2d2d 18%, #3a3a3a 30%, #2d2d2d 46%);
   background-size: 200% 100%;
 }
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
