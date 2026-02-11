@@ -1,2 +1,2 @@
 AI_kinolights
-github pages 설정
+create github pages test branch for PR
