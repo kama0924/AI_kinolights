@@ -14,7 +14,7 @@ npm run dev
 
 - `public/db/content.json` 파일을 앱의 로컬 DB처럼 사용합니다.
 - `npm run sync:data`를 실행하면 웹 API에서 실제 작품 데이터를 수집해 JSON DB를 갱신합니다.
-- 수집 분류: 영화 / 드라마 / 예능 / 신작(`isNew` 플래그)
+- 수집 분류: 영화 / 드라마 / 예능 / 애니메이션 / 신작(`isNew` 플래그)
 
 ## GitHub Pages 배포
 

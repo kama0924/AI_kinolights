@@ -14,7 +14,7 @@ import {
   UserRound,
 } from 'lucide-react';
 
-const tabs = ['홈', '영화', '드라마', '예능', '신작'];
+const tabs = ['홈', '영화', '드라마', '예능', '애니메이션', '신작'];
 const ottColor = {
   Netflix: 'bg-red-600',
   Wavve: 'bg-sky-600',
@@ -22,6 +22,23 @@ const ottColor = {
   'Disney+': 'bg-blue-600',
   Watcha: 'bg-pink-500',
   'Coupang Play': 'bg-indigo-500',
+};
+
+const reviewTemplates = [
+  '연출과 분위기가 좋아서 몰입해서 봤어요.',
+  '캐릭터 서사가 탄탄해서 다음 화/장면이 계속 궁금했어요.',
+  '영상미와 음악의 조합이 정말 인상적이었습니다.',
+  '가볍게 보기 시작했는데 생각보다 완성도가 높아요.',
+  '주변에 추천하고 싶은 작품이에요.',
+];
+
+const hasEnglish = (text = '') => /[A-Za-z]{3,}/.test(text);
+const koreanOverview = (item) => {
+  const raw = item?.overview || '';
+  if (!raw || hasEnglish(raw)) {
+    return '주요 인물과 사건을 중심으로 전개되는 작품입니다.';
+  }
+  return raw;
 };
 
 function useContentDb() {
@@ -123,7 +140,7 @@ function HomePage() {
     return () => clearInterval(timer);
   }, []);
 
-  const heroSlides = useMemo(() => items.filter((item) => item.backdrop).slice(0, 6), [items]);
+  const heroSlides = useMemo(() => items.filter((item) => item.backdrop).slice(0, 8), [items]);
   const currentHero = heroSlides.length ? heroSlides[activeSlide % heroSlides.length] : null;
 
   const filteredByTab = useMemo(() => {
@@ -179,7 +196,7 @@ function HomePage() {
                 <div className="absolute inset-0 flex flex-col justify-end p-5">
                   <p className="text-xs text-zinc-300">{currentHero.type} · {currentHero.genres.slice(0, 2).join(' / ')}</p>
                   <h1 className="mt-1 text-3xl font-extrabold tracking-tight">{currentHero.title}</h1>
-                  <p className="mt-1 line-clamp-2 max-w-[85%] text-xs text-zinc-200">{currentHero.overview}</p>
+                  <p className="mt-1 line-clamp-2 max-w-[85%] text-xs text-zinc-200">{koreanOverview(currentHero)}</p>
                   <span className="mt-3 inline-flex w-fit items-center rounded-full bg-kinopoint px-4 py-2 text-sm font-semibold">상세 보기</span>
                 </div>
               </Link>
@@ -246,6 +263,16 @@ function DetailPage() {
       .slice(0, 12);
   }, [items, item]);
 
+  const reviews = useMemo(() => {
+    if (!item) return [];
+    return reviewTemplates.map((template, index) => ({
+      id: `${item.id}-review-${index}`,
+      user: `유저${index + 1}${item.title.slice(0, 1)}`,
+      score: (Math.max(3.5, Number(item.rating) - 0.4 + index * 0.1)).toFixed(1),
+      text: `${item.title} ${template}`,
+    }));
+  }, [item]);
+
   if (loading) return <div className="min-h-screen bg-kinobg p-4"><div className="skeleton h-72 rounded-2xl" /></div>;
   if (error || !item) return <div className="min-h-screen bg-kinobg p-4 text-red-300">상세 정보를 불러오지 못했습니다.</div>;
 
@@ -253,7 +280,10 @@ function DetailPage() {
     <div className="min-h-screen bg-kinobg text-zinc-100">
       <div className="mx-auto max-w-screen-md pb-12">
         <header className="sticky top-0 z-50 flex items-center justify-between border-b border-zinc-700/60 bg-[#121212]/80 px-4 py-3 backdrop-blur-md">
-          <button onClick={() => navigate(-1)} className="rounded-full bg-zinc-700/70 p-2"><ArrowLeft className="h-4 w-4" /></button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => navigate(-1)} className="rounded-full bg-zinc-700/70 p-2"><ArrowLeft className="h-4 w-4" /></button>
+            <Link to="/" className="rounded-full bg-kinopoint/20 px-3 py-1 text-xs font-semibold text-kinopoint">홈</Link>
+          </div>
           <p className="text-sm font-semibold">작품 정보</p>
           <button className="rounded-full bg-zinc-700/70 p-2"><Search className="h-4 w-4" /></button>
         </header>
@@ -276,7 +306,7 @@ function DetailPage() {
 
         <section className="px-4 pt-5">
           <h2 className="mb-2 text-sm font-bold text-zinc-200">작품 소개</h2>
-          <p className="text-sm leading-6 text-zinc-300">{item.overview}</p>
+          <p className="text-sm leading-6 text-zinc-300">{koreanOverview(item)}</p>
         </section>
 
         <section className="px-4 pt-6">
@@ -296,6 +326,21 @@ function DetailPage() {
             <p className="flex items-center gap-2"><CalendarDays className="h-4 w-4 text-zinc-400" /> 공개일: {item.releaseDate}</p>
             <p>국가: {item.country}</p>
             <p>출연/채널: {item.cast.join(', ')}</p>
+          </div>
+        </section>
+
+        <section className="px-4 pt-6">
+          <h2 className="mb-3 text-sm font-bold text-zinc-200">리뷰</h2>
+          <div className="space-y-2">
+            {reviews.map((review) => (
+              <article key={review.id} className="rounded-xl border border-zinc-700 bg-zinc-900/70 p-3">
+                <div className="mb-1 flex items-center justify-between text-xs text-zinc-400">
+                  <span>{review.user}</span>
+                  <span className="inline-flex items-center gap-1 text-yellow-300"><Star className="h-3.5 w-3.5 fill-yellow-300" /> {review.score}</span>
+                </div>
+                <p className="text-sm text-zinc-200">{review.text}</p>
+              </article>
+            ))}
           </div>
         </section>
 
