@@ -14,22 +14,7 @@ import {
   UserRound,
 } from 'lucide-react';
 
-const tabs = ['홈', '영화', '드라마', '예능', '애니메이션', '신작'];
-const boardTabs = [
-  { key: 'kr10', label: '한국10', title: '한국 TOP 10' },
-  { key: 'us10', label: '미국10', title: '미국 TOP 10' },
-  { key: 'rt10', label: '로튼10', title: 'Rotten Tomatoes TOP 10' },
-  { key: 'imdb10', label: 'IMDb10', title: 'IMDb TOP 10' },
-  { key: 'watcha10', label: '왓챠10', title: '왓챠피디아 TOP 10' },
-];
-
-const boardTitleMap = {
-  kr10: ['파묘', '서울의 봄', '기생충', '런닝맨', '나 혼자 산다', '흑백요리사', '환승연애', '유 퀴즈 온 더 블럭', '무한도전', '복면가왕'],
-  us10: ['듄: 파트 2', '오펜하이머', '존 윅 4', '미션 임파서블: 데드 레코닝 PART ONE', '기생충', 'Jujutsu Kaisen 2nd Season', 'Shingeki no Kyojin: The Final Season - Kanketsu-hen', 'One Piece Fan Letter', 'Blue Lock vs. U-20 Japan', 'Haikyuu!! Movie: Gomisuteba no Kessen'],
-  rt10: ['기생충', '오펜하이머', '듄: 파트 2', '존 윅 4', '파묘', 'Sousou no Frieren', 'One Piece Fan Letter', 'Kusuriya no Hitorigoto 2nd Season', '런닝맨', '피지컬: 100'],
-  imdb10: ['기생충', '오펜하이머', '듄: 파트 2', '존 윅 4', '미션 임파서블: 데드 레코닝 PART ONE', 'Shingeki no Kyojin: The Final Season - Kanketsu-hen', 'One Piece Fan Letter', 'Bleach: Sennen Kessen-hen - Soukoku-tan', 'Jujutsu Kaisen 2nd Season', 'Sousou no Frieren'],
-  watcha10: ['파묘', '서울의 봄', '런닝맨', '나 혼자 산다', '유 퀴즈 온 더 블럭', '환승연애', '기생충', '듄: 파트 2', '오펜하이머', '피지컬: 100'],
-};
+const tabs = ['홈', '영화', '드라마', '예능', '애니메이션', '신작', '한국TOP100', '미국TOP100'];
 
 const ottColor = {
   Netflix: 'bg-red-600',
@@ -55,24 +40,6 @@ const koreanOverview = (item) => {
   return raw;
 };
 
-const defaultFallbackItem = (title, key, idx) => ({
-  id: `${key}-${idx + 1}`,
-  title,
-  type: '영화',
-  isNew: false,
-  year: '-',
-  rating: '4.0',
-  poster: `https://picsum.photos/seed/${encodeURIComponent(`${key}-${title}`)}/500/750`,
-  backdrop: `https://picsum.photos/seed/${encodeURIComponent(`${key}-${title}-bg`)}/1280/720`,
-  overview: `${title} 작품의 핵심 포인트를 확인할 수 있는 추천 리스트 항목입니다.`,
-  genres: ['추천'],
-  ott: ['Watcha'],
-  runtime: '-',
-  country: '-',
-  releaseDate: '-',
-  cast: ['정보 준비 중'],
-});
-
 function useContentDb() {
   const [state, setState] = useState({ items: [], loading: true, error: '' });
 
@@ -85,6 +52,7 @@ function useContentDb() {
       })
       .then((data) => active && setState({ items: data.items ?? [], loading: false, error: '' }))
       .catch((error) => active && setState({ items: [], loading: false, error: error.message }));
+
     return () => {
       active = false;
     };
@@ -149,7 +117,6 @@ function PosterCard({ item, rank }) {
 function HomePage() {
   const { items, loading, error } = useContentDb();
   const [tab, setTab] = useState('홈');
-  const [activeBoard, setActiveBoard] = useState('kr10');
   const [query, setQuery] = useState('');
   const [activeSlide, setActiveSlide] = useState(0);
 
@@ -158,45 +125,40 @@ function HomePage() {
     return () => clearInterval(timer);
   }, []);
 
-  const boardItemsMap = useMemo(() => {
-    const byTitle = (target) => items.find((item) => item.title.toLowerCase() === target.toLowerCase()) || items.find((item) => item.title.toLowerCase().includes(target.toLowerCase()));
-    return Object.fromEntries(
-      boardTabs.map((board) => [
-        board.key,
-        boardTitleMap[board.key].map((title, idx) => byTitle(title) || defaultFallbackItem(title, board.key, idx)),
-      ]),
-    );
-  }, [items]);
-
-  const tabFilteredItems = useMemo(() => {
+  const filteredByTab = useMemo(() => {
     if (tab === '홈') return items;
     if (tab === '신작') return items.filter((item) => item.isNew);
+    if (tab === '한국TOP100') {
+      return [...items]
+        .filter((item) => item.country === 'KR' || item.country === 'KO')
+        .sort((a, b) => Number(b.rating) - Number(a.rating) || Number(b.year) - Number(a.year))
+        .slice(0, 100);
+    }
+    if (tab === '미국TOP100') {
+      return [...items]
+        .filter((item) => item.country === 'US')
+        .sort((a, b) => Number(b.rating) - Number(a.rating) || Number(b.year) - Number(a.year))
+        .slice(0, 100);
+    }
     return items.filter((item) => item.type === tab);
   }, [items, tab]);
 
-  const sourceItems = useMemo(() => {
-    const boardOn = tab === '신작';
-    if (boardOn) return boardItemsMap[activeBoard] ?? [];
-    return tabFilteredItems;
-  }, [tab, tabFilteredItems, boardItemsMap, activeBoard]);
-
   const searchedItems = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    if (!normalized) return sourceItems;
-    return sourceItems.filter((item) =>
+    if (!normalized) return filteredByTab;
+    return filteredByTab.filter((item) =>
       [item.title, item.type, ...(item.genres ?? [])].join(' ').toLowerCase().includes(normalized),
     );
-  }, [sourceItems, query]);
+  }, [filteredByTab, query]);
 
   const heroSlides = useMemo(() => searchedItems.filter((item) => item.backdrop).slice(0, 8), [searchedItems]);
   const currentHero = heroSlides.length ? heroSlides[activeSlide % heroSlides.length] : null;
   const trending = searchedItems.slice(0, 12);
   const rankings = [...searchedItems]
     .sort((a, b) => Number(b.rating) - Number(a.rating) || Number(b.year) - Number(a.year))
-    .slice(0, 10);
+    .slice(0, 100);
 
-  const boardTitle = boardTabs.find((board) => board.key === activeBoard)?.title || 'TOP 10';
-  const sectionLabel = tab === '신작' ? `${boardTitle}` : tab;
+  const sectionLabel = tab;
 
   return (
     <div className="min-h-screen bg-kinobg text-zinc-100">
@@ -226,7 +188,7 @@ function HomePage() {
             </label>
           </div>
 
-          <nav className="no-scrollbar flex gap-2 overflow-x-auto pb-2">
+          <nav className="no-scrollbar flex gap-2 overflow-x-auto pb-3">
             {tabs.map((name) => (
               <button
                 key={name}
@@ -239,24 +201,6 @@ function HomePage() {
               </button>
             ))}
           </nav>
-
-          {tab === '신작' ? (
-            <nav className="no-scrollbar flex gap-2 overflow-x-auto pb-3 pt-1">
-              {boardTabs.map((board) => (
-                <button
-                  key={board.key}
-                  onClick={() => setActiveBoard(board.key)}
-                  className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-semibold ${
-                    activeBoard === board.key
-                      ? 'border-cyan-400 bg-cyan-400/15 text-cyan-300'
-                      : 'border-zinc-700 bg-zinc-900/80 text-zinc-300'
-                  }`}
-                >
-                  {board.label}
-                </button>
-              ))}
-            </nav>
-          ) : null}
         </header>
 
         {loading ? <div className="skeleton h-72 w-full rounded-2xl" /> : null}
@@ -292,7 +236,7 @@ function HomePage() {
                 {rankings.slice(0, 3).map((item, idx) => <PosterCard key={item.id} item={item} rank={idx + 1} />)}
               </div>
               <div className="mt-4 space-y-2">
-                {rankings.map((item, idx) => (
+                {rankings.slice(0, tab.includes('TOP100') ? 100 : 10).map((item, idx) => (
                   <Link to={`/title/${item.id}`} key={item.id} className="flex items-center gap-3 rounded-lg border border-zinc-700 bg-zinc-900/50 px-3 py-2">
                     <p className="w-5 text-center text-sm font-bold text-kinopoint">{idx + 1}</p>
                     <img src={item.poster} alt={item.title} className="h-12 w-8 rounded object-cover" />
