@@ -15,6 +15,22 @@ import {
 } from 'lucide-react';
 
 const tabs = ['홈', '영화', '드라마', '예능', '애니메이션', '신작'];
+const boardTabs = [
+  { key: 'kr10', label: '한국10', title: '한국 TOP 10' },
+  { key: 'us10', label: '미국10', title: '미국 TOP 10' },
+  { key: 'rt10', label: '로튼10', title: 'Rotten Tomatoes TOP 10' },
+  { key: 'imdb10', label: 'IMDb10', title: 'IMDb TOP 10' },
+  { key: 'watcha10', label: '왓챠10', title: '왓챠피디아 TOP 10' },
+];
+
+const boardTitleMap = {
+  kr10: ['파묘', '서울의 봄', '기생충', '런닝맨', '나 혼자 산다', '흑백요리사', '환승연애', '유 퀴즈 온 더 블럭', '무한도전', '복면가왕'],
+  us10: ['듄: 파트 2', '오펜하이머', '존 윅 4', '미션 임파서블: 데드 레코닝 PART ONE', '기생충', 'Jujutsu Kaisen 2nd Season', 'Shingeki no Kyojin: The Final Season - Kanketsu-hen', 'One Piece Fan Letter', 'Blue Lock vs. U-20 Japan', 'Haikyuu!! Movie: Gomisuteba no Kessen'],
+  rt10: ['기생충', '오펜하이머', '듄: 파트 2', '존 윅 4', '파묘', 'Sousou no Frieren', 'One Piece Fan Letter', 'Kusuriya no Hitorigoto 2nd Season', '런닝맨', '피지컬: 100'],
+  imdb10: ['기생충', '오펜하이머', '듄: 파트 2', '존 윅 4', '미션 임파서블: 데드 레코닝 PART ONE', 'Shingeki no Kyojin: The Final Season - Kanketsu-hen', 'One Piece Fan Letter', 'Bleach: Sennen Kessen-hen - Soukoku-tan', 'Jujutsu Kaisen 2nd Season', 'Sousou no Frieren'],
+  watcha10: ['파묘', '서울의 봄', '런닝맨', '나 혼자 산다', '유 퀴즈 온 더 블럭', '환승연애', '기생충', '듄: 파트 2', '오펜하이머', '피지컬: 100'],
+};
+
 const ottColor = {
   Netflix: 'bg-red-600',
   Wavve: 'bg-sky-600',
@@ -35,30 +51,40 @@ const reviewTemplates = [
 const hasEnglish = (text = '') => /[A-Za-z]{3,}/.test(text);
 const koreanOverview = (item) => {
   const raw = item?.overview || '';
-  if (!raw || hasEnglish(raw)) {
-    return '주요 인물과 사건을 중심으로 전개되는 작품입니다.';
-  }
+  if (!raw || hasEnglish(raw)) return '주요 인물과 사건을 중심으로 전개되는 작품입니다.';
   return raw;
 };
+
+const defaultFallbackItem = (title, key, idx) => ({
+  id: `${key}-${idx + 1}`,
+  title,
+  type: '영화',
+  isNew: false,
+  year: '-',
+  rating: '4.0',
+  poster: `https://picsum.photos/seed/${encodeURIComponent(`${key}-${title}`)}/500/750`,
+  backdrop: `https://picsum.photos/seed/${encodeURIComponent(`${key}-${title}-bg`)}/1280/720`,
+  overview: `${title} 작품의 핵심 포인트를 확인할 수 있는 추천 리스트 항목입니다.`,
+  genres: ['추천'],
+  ott: ['Watcha'],
+  runtime: '-',
+  country: '-',
+  releaseDate: '-',
+  cast: ['정보 준비 중'],
+});
 
 function useContentDb() {
   const [state, setState] = useState({ items: [], loading: true, error: '' });
 
   useEffect(() => {
     let active = true;
-
     fetch(`${import.meta.env.BASE_URL}db/content.json`)
       .then((res) => {
         if (!res.ok) throw new Error('DB 파일을 불러오지 못했습니다.');
         return res.json();
       })
-      .then((data) => {
-        if (active) setState({ items: data.items ?? [], loading: false, error: '' });
-      })
-      .catch((error) => {
-        if (active) setState({ items: [], loading: false, error: error.message });
-      });
-
+      .then((data) => active && setState({ items: data.items ?? [], loading: false, error: '' }))
+      .catch((error) => active && setState({ items: [], loading: false, error: error.message }));
     return () => {
       active = false;
     };
@@ -99,18 +125,10 @@ function RevealSection({ title, icon, children }) {
 function PosterCard({ item, rank }) {
   return (
     <Link to={`/title/${item.id}`} className="group relative block rounded-xl bg-kinocard p-2 shadow-card">
-      {rank ? (
-        <span className="absolute left-3 top-3 z-20 text-4xl font-black leading-none text-kinopoint drop-shadow-[0_4px_10px_rgba(0,0,0,0.7)]">
-          {rank}
-        </span>
-      ) : null}
+      {rank ? <span className="absolute left-3 top-3 z-20 text-4xl font-black leading-none text-kinopoint drop-shadow-[0_4px_10px_rgba(0,0,0,0.7)]">{rank}</span> : null}
       <div className="relative overflow-hidden rounded-lg">
         <div className="aspect-[2/3] bg-zinc-800">
-          {item.poster ? (
-            <img src={item.poster} alt={item.title} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
-          ) : (
-            <div className="skeleton h-full w-full" />
-          )}
+          {item.poster ? <img src={item.poster} alt={item.title} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" /> : <div className="skeleton h-full w-full" />}
         </div>
         <div className="absolute bottom-2 left-2 flex flex-wrap gap-1">
           {item.ott.map((service) => (
@@ -122,9 +140,7 @@ function PosterCard({ item, rank }) {
       </div>
       <div className="pt-2">
         <p className="truncate text-sm font-medium">{item.title}</p>
-        <p className="text-xs text-zinc-400">
-          {item.year} · ⭐ {item.rating}
-        </p>
+        <p className="text-xs text-zinc-400">{item.year} · ⭐ {item.rating}</p>
       </div>
     </Link>
   );
@@ -133,6 +149,8 @@ function PosterCard({ item, rank }) {
 function HomePage() {
   const { items, loading, error } = useContentDb();
   const [tab, setTab] = useState('홈');
+  const [activeBoard, setActiveBoard] = useState('kr10');
+  const [query, setQuery] = useState('');
   const [activeSlide, setActiveSlide] = useState(0);
 
   useEffect(() => {
@@ -140,19 +158,45 @@ function HomePage() {
     return () => clearInterval(timer);
   }, []);
 
-  const heroSlides = useMemo(() => items.filter((item) => item.backdrop).slice(0, 8), [items]);
-  const currentHero = heroSlides.length ? heroSlides[activeSlide % heroSlides.length] : null;
+  const boardItemsMap = useMemo(() => {
+    const byTitle = (target) => items.find((item) => item.title.toLowerCase() === target.toLowerCase()) || items.find((item) => item.title.toLowerCase().includes(target.toLowerCase()));
+    return Object.fromEntries(
+      boardTabs.map((board) => [
+        board.key,
+        boardTitleMap[board.key].map((title, idx) => byTitle(title) || defaultFallbackItem(title, board.key, idx)),
+      ]),
+    );
+  }, [items]);
 
-  const filteredByTab = useMemo(() => {
+  const tabFilteredItems = useMemo(() => {
     if (tab === '홈') return items;
     if (tab === '신작') return items.filter((item) => item.isNew);
     return items.filter((item) => item.type === tab);
   }, [items, tab]);
 
-  const trending = filteredByTab.slice(0, 12);
-  const rankings = [...filteredByTab]
+  const sourceItems = useMemo(() => {
+    const boardOn = tab === '신작';
+    if (boardOn) return boardItemsMap[activeBoard] ?? [];
+    return tabFilteredItems;
+  }, [tab, tabFilteredItems, boardItemsMap, activeBoard]);
+
+  const searchedItems = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return sourceItems;
+    return sourceItems.filter((item) =>
+      [item.title, item.type, ...(item.genres ?? [])].join(' ').toLowerCase().includes(normalized),
+    );
+  }, [sourceItems, query]);
+
+  const heroSlides = useMemo(() => searchedItems.filter((item) => item.backdrop).slice(0, 8), [searchedItems]);
+  const currentHero = heroSlides.length ? heroSlides[activeSlide % heroSlides.length] : null;
+  const trending = searchedItems.slice(0, 12);
+  const rankings = [...searchedItems]
     .sort((a, b) => Number(b.rating) - Number(a.rating) || Number(b.year) - Number(a.year))
     .slice(0, 10);
+
+  const boardTitle = boardTabs.find((board) => board.key === activeBoard)?.title || 'TOP 10';
+  const sectionLabel = tab === '신작' ? `${boardTitle}` : tab;
 
   return (
     <div className="min-h-screen bg-kinobg text-zinc-100">
@@ -169,7 +213,20 @@ function HomePage() {
               <button aria-label="mypage" className="rounded-full bg-zinc-700/60 p-2"><UserRound className="h-4 w-4" /></button>
             </div>
           </div>
-          <nav className="no-scrollbar flex gap-2 overflow-x-auto pb-3">
+
+          <div className="mb-3 rounded-xl border border-zinc-700 bg-zinc-900/70 px-3 py-2">
+            <label className="flex items-center gap-2 text-sm text-zinc-300">
+              <Search className="h-4 w-4 text-zinc-500" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="작품명, 장르, 카테고리 검색"
+                className="w-full bg-transparent text-sm outline-none placeholder:text-zinc-500"
+              />
+            </label>
+          </div>
+
+          <nav className="no-scrollbar flex gap-2 overflow-x-auto pb-2">
             {tabs.map((name) => (
               <button
                 key={name}
@@ -182,6 +239,24 @@ function HomePage() {
               </button>
             ))}
           </nav>
+
+          {tab === '신작' ? (
+            <nav className="no-scrollbar flex gap-2 overflow-x-auto pb-3 pt-1">
+              {boardTabs.map((board) => (
+                <button
+                  key={board.key}
+                  onClick={() => setActiveBoard(board.key)}
+                  className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-semibold ${
+                    activeBoard === board.key
+                      ? 'border-cyan-400 bg-cyan-400/15 text-cyan-300'
+                      : 'border-zinc-700 bg-zinc-900/80 text-zinc-300'
+                  }`}
+                >
+                  {board.label}
+                </button>
+              ))}
+            </nav>
+          ) : null}
         </header>
 
         {loading ? <div className="skeleton h-72 w-full rounded-2xl" /> : null}
@@ -189,7 +264,7 @@ function HomePage() {
 
         {!loading && !error && currentHero ? (
           <main>
-            <RevealSection title={`${tab} 추천`} icon={<Flame className="h-4 w-4 text-orange-400" />}>
+            <RevealSection title={`${sectionLabel} 추천`} icon={<Flame className="h-4 w-4 text-orange-400" />}>
               <Link to={`/title/${currentHero.id}`} className="relative block overflow-hidden rounded-2xl border border-zinc-700/60 bg-kinocard">
                 <img src={currentHero.backdrop} alt={currentHero.title} className="h-56 w-full object-cover sm:h-72" />
                 <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/45 to-transparent" />
@@ -204,7 +279,7 @@ function HomePage() {
 
             <hr className="border-zinc-700/60" />
 
-            <RevealSection title={`${tab} 인기작`} icon={<Home className="h-4 w-4 text-zinc-200" />}>
+            <RevealSection title={`${sectionLabel} 인기작`} icon={<Home className="h-4 w-4 text-zinc-200" />}>
               <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
                 {trending.map((item) => <PosterCard key={item.id} item={item} />)}
               </div>
@@ -212,7 +287,7 @@ function HomePage() {
 
             <hr className="border-zinc-700/60" />
 
-            <RevealSection title={`${tab} 랭킹`} icon={<Star className="h-4 w-4 text-amber-300" />}>
+            <RevealSection title={`${sectionLabel} 랭킹`} icon={<Star className="h-4 w-4 text-amber-300" />}>
               <div className="grid grid-cols-3 gap-3">
                 {rankings.slice(0, 3).map((item, idx) => <PosterCard key={item.id} item={item} rank={idx + 1} />)}
               </div>
@@ -273,6 +348,10 @@ function DetailPage() {
     }));
   }, [item]);
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }, [id]);
+
   if (loading) return <div className="min-h-screen bg-kinobg p-4"><div className="skeleton h-72 rounded-2xl" /></div>;
   if (error || !item) return <div className="min-h-screen bg-kinobg p-4 text-red-300">상세 정보를 불러오지 못했습니다.</div>;
 
@@ -312,11 +391,7 @@ function DetailPage() {
         <section className="px-4 pt-6">
           <h2 className="mb-3 text-sm font-bold text-zinc-200">감상 가능한 OTT</h2>
           <div className="flex flex-wrap gap-2">
-            {item.ott.map((ott) => (
-              <span key={ott} className={`${ottColor[ott] ?? 'bg-zinc-700'} rounded-full px-3 py-1 text-xs font-semibold`}>
-                {ott}
-              </span>
-            ))}
+            {item.ott.map((ott) => <span key={ott} className={`${ottColor[ott] ?? 'bg-zinc-700'} rounded-full px-3 py-1 text-xs font-semibold`}>{ott}</span>)}
           </div>
         </section>
 
@@ -348,7 +423,7 @@ function DetailPage() {
           <h2 className="mb-3 text-sm font-bold text-zinc-200">비슷한 작품</h2>
           <div className="no-scrollbar flex gap-3 overflow-x-auto pb-1">
             {similar.map((entry) => (
-              <Link key={entry.id} to={`/title/${entry.id}`} className="w-28 shrink-0">
+              <Link key={entry.id} to={`/title/${entry.id}`} className="w-28 shrink-0" onClick={() => window.scrollTo({ top: 0, behavior: 'auto' })}>
                 <div className="aspect-[2/3] overflow-hidden rounded-lg bg-zinc-800">
                   <img src={entry.poster} alt={entry.title} className="h-full w-full object-cover" />
                 </div>
